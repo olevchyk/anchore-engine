@@ -175,6 +175,8 @@ RUN set -ex && \
 RUN echo -e '#!/usr/bin/env bash\n\nsource /opt/rh/rh-python36/enable' > /etc/profile.d/python3.sh && \
     echo -e '#!/usr/bin/env bash\n\n/docker-entrypoint.sh anchore-cli $@' > /usr/local/bin/anchore-cli && \
     chmod +x /usr/local/bin/anchore-cli && \
+    echo -e '!/usr/bin/dumb-init  /bin/bash\n\n/docker-entrypoint.sh anchore-manager $@' > /usr/local/bin/anchore-manager && \
+    chmod +x /usr/local/bin/anchore-manager && \
     curl -L -o /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 && \
     chmod +x /usr/bin/dumb-init
 
