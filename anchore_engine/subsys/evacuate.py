@@ -7,7 +7,9 @@ This is primarily used for the analysis archive feature of the system, but is no
 """
 import copy
 from anchore_engine.clients.services.simplequeue import SimpleQueueClient
+from anchore_engine.clients.services.catalog import CatalogClient
 from anchore_engine.clients.services import internal_client_for
+import anchore_engine.subsys.taskstate
 from anchore_engine.subsys import logger
 
 
@@ -35,19 +37,31 @@ def initialize():
 class GracefulEvacuator(object):
 
     def __init__(self):
-        self.q_client = internal_client_for(SimpleQueueClient, userId=None)
         self.__shutdown_queue = []
 
     def evacuate(self):
         logger.error(
             f"OLEKSII_QUEUE_PREEVACUATE {len(self.__shutdown_queue)} {self}"
         )
-        for qobj in self.__shutdown_queue:
-            if not self.q_client.is_inqueue('images_to_analyze', qobj):
-                logger.error(
-                    f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
-                )
-                self.q_client.enqueue('images_to_analyze', qobj.get('data'))
+        if len(self.__shutdown_queue) > 0:
+            q_client = internal_client_for(SimpleQueueClient, userId=None)
+            catalog_client = internal_client_for(CatalogClient, userId=self.__shutdown_queue[0].get('userId'))
+            for qobj in self.__shutdown_queue:
+                image_record = qobj.get('data')
+                if not q_client.is_inqueue('images_to_analyze', qobj):
+                    logger.error(
+                        f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
+                    )
+                    imageDigest = image_record.get("imageDigest")
+                    image_record['analysis_status'] = anchore_engine.subsys.taskstate.working_state('base_state')
+
+                    if imageDigest:
+                        rc = catalog_client.update_image(imageDigest, image_record)
+                        q_client.enqueue('images_to_analyze', image_record)
+                        if rc is not None:
+                            logger.error(
+                                f"OLEKSII_QUEUE_CATALOG cannot set base_state in catalog for {imageDigest}: {str(rc)}"
+                            )
 
     def add(self, qobj):
         if qobj not in self.__shutdown_queue:
