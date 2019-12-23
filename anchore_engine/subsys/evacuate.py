@@ -40,9 +40,6 @@ class GracefulEvacuator(object):
         self.__shutdown_queue = []
 
     def evacuate(self):
-        logger.error(
-            f"OLEKSII_QUEUE_PREEVACUATE {len(self.__shutdown_queue)} {self}"
-        )
         if len(self.__shutdown_queue) > 0:
             q_client = internal_client_for(SimpleQueueClient, userId=None)
             for qobj in self.__shutdown_queue:
@@ -64,12 +61,8 @@ class GracefulEvacuator(object):
                         return (True)
                     image['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
                     if imageDigest:
-                        rc = catalog_client.update_image(imageDigest, image)
+                        catalog_client.update_image(imageDigest, image)
                         q_client.enqueue('images_to_analyze', image_record)
-                        if rc is not None:
-                            logger.error(
-                                f"OLEKSII_QUEUE_CATALOG cannot set base_state in catalog for {imageDigest}: {str(rc)}"
-                            )
 
     def add(self, qobj):
         if qobj not in self.__shutdown_queue:
