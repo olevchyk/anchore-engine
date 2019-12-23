@@ -52,10 +52,19 @@ class GracefulEvacuator(object):
                         f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
                     )
                     imageDigest = image_record.get("imageDigest")
-                    image_record['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
+                    catalog_client = internal_client_for(CatalogClient, userId=image_record.get('userId'))
+
+                    try:
+                        image = catalog_client.get_image(imageDigest)
+                        if not image_record:
+                            raise Exception("empty image record from catalog")
+                    except Exception as err:
+                        logger.warn("dequeued image cannot be fetched from catalog - skipping analysis (" + str(
+                            imageDigest) + ") - exception: " + str(err))
+                        return (True)
+                    image['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
                     if imageDigest:
-                        catalog_client = internal_client_for(CatalogClient, userId=image_record.get('userId'))
-                        rc = catalog_client.update_image(imageDigest, image_record)
+                        rc = catalog_client.update_image(imageDigest, image)
                         q_client.enqueue('images_to_analyze', image_record)
                         if rc is not None:
                             logger.error(
