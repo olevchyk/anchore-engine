@@ -94,7 +94,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
     try:
         logger.debug('dequeued object: {}'.format(qobj))
 
-        record = qobj.get('data').get('data').get('data') or qobj['data']
+        record = qobj.get('data', {}).get('data', {}).get('data') or qobj['data']
         if 'data' in record:
             record = record['data']
         userId = record['userId']
