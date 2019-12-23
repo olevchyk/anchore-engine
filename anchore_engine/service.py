@@ -226,6 +226,7 @@ class BaseService(object, metaclass=ServiceMeta):
         evacuator = evacuate.get_manager()
         if evacuator:
             logger.error(f"OLEKSII Shutdown on {__name__} triggered {evacuator}")
+            evacuator.evacuate()
         else:
             logger.error(f"OLEKSII self.evacuator is None on {__name__}")
 

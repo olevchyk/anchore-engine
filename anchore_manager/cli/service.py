@@ -136,7 +136,10 @@ def shutdown_service(service, flush_pidfile=False, sig=9):
 
             if flush_pidfile:
                 logger.info("Removing stale pidfile ({}) for service ({})".format(pidfile, service))
-                os.remove(pidfile)
+                if os.path.exists(pidfile):
+                    os.remove(pidfile)
+                else:
+                    logger.info("pidfile ({}) for service ({}) was already removed".format(pidfile, service))
     except Exception as err:
         logger.info("Could not detect/shut down running service ({}) - exception: {}".format(service, str(err)))
 
