@@ -53,7 +53,7 @@ class GracefulEvacuator(object):
                         f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
                     )
                     imageDigest = image_record.get("imageDigest")
-                    image_record['analysis_status'] = anchore_engine.subsys.taskstate.working_state('base_state')
+                    image_record['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
 
                     if imageDigest:
                         rc = catalog_client.update_image(imageDigest, image_record)
