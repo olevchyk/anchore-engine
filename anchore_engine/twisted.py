@@ -286,6 +286,13 @@ class WsgiApiServiceMaker(object):
 
         self.resource_nodes[name] = resource
 
+    def shutdown(self):
+        if self.anchore_service:
+            self.anchore_service.shutdown()
+        else:
+            logger.error(f"OLEKSII self.anchore_service is None on {__name__}")
+
+
     def _build_api_service(self):
         """
         Once called, the resource is initialized. Any calls to self._add_resource() should be done before calling this fn.
@@ -297,6 +304,7 @@ class WsgiApiServiceMaker(object):
         wsgi_app = self.anchore_service.get_api_application()
         wsgi_site = wsgi.WSGIResource(reactor, reactor.getThreadPool(), application=wsgi_app)
         reactor.getThreadPool().adjustPoolsize(maxthreads=thread_count)
+        reactor.addSystemEventTrigger('before', 'shutdown', self.shutdown)
         logger.debug('Thread pool size stats. Min={}, Max={}'.format(reactor.getThreadPool().min, reactor.getThreadPool().max))
 
         self._add_resource(self.anchore_service.__service_api_version__.encode('utf-8'), wsgi_site)

@@ -129,6 +129,7 @@ class BaseService(object, metaclass=ServiceMeta):
 
     __is_unique_service__ = False
     __service_name__ = None
+    evacuator = None
     __db_enabled__ = True
     __monitors__ = {}
     __monitor_fn__ = monitors.monitor
@@ -220,6 +221,14 @@ class BaseService(object, metaclass=ServiceMeta):
         self._process_stage_handlers(LifeCycleStages.pre_config)
         self._configure()
         self._process_stage_handlers(LifeCycleStages.post_config)
+
+    def shutdown(self):
+        if self.evacuator is not None:
+            logger.error(f"OLEKSII Shutdown on {__name__} triggered {self.evacuator}")
+            self.evacuator.evacuate()
+        else:
+            logger.error(f"OLEKSII self.evacuator is None on {__name__}")
+
 
     def _configure(self):
         """

@@ -81,7 +81,7 @@ def perform_analyze_nodocker(userId, manifest, image_record, registry_creds, lay
     return (ret_analyze)
 
 
-def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
+def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
     global servicename #current_avg, current_avg_count
 
     timer = int(time.time())
@@ -266,6 +266,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
                 event = events.UserAnalyzeImageFailed(user_id=userId, full_tag=fulltag, error=str(err))
                 analysis_events.append(event)
         finally:
+            evacuator.pop(qobj)
             if analysis_events:
                 for event in analysis_events:
                     try:
@@ -350,6 +351,37 @@ def handle_layer_cache(**kwargs):
 
     return(True)
 
+class GracefulEvacuator:
+
+    def __init__(self):
+        self.q_client = internal_client_for(SimpleQueueClient, userId=None)
+        self.__shutdown_queue = []
+
+    def evacuate(self):
+        logger.error(
+            f"OLEKSII_QUEUE_PREEVACUATE {len(self.__shutdown_queue)} {self}"
+        )
+        for qobj in self.__shutdown_queue:
+            if not self.q_client.is_inqueue('images_to_analyze', qobj):
+                logger.error(
+                    f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
+                )
+                self.q_client.enqueue('images_to_analyze', qobj)
+
+    def push(self, qobj):
+        if qobj not in self.__shutdown_queue:
+            self.__shutdown_queue.append(qobj)
+            logger.error(
+                f"OLEKSII_QUEUE_ADD {qobj.get('data', {}).get('imageDigest')} has added qsize: {len(self.__shutdown_queue)} - {self}"
+            )
+    
+    def pop(self, qobj):
+        self.__shutdown_queue.remove(qobj)
+        logger.error(
+            f"OLEKSII_QUEUE_DELETE {qobj.get('data', {}).get('imageDigest')} has been removed qsize: {len(self.__shutdown_queue)} - {self}"
+        )
+
+
 def handle_image_analyzer(*args, **kwargs):
     """
     Processor for image analysis requests coming from the work queue
@@ -359,7 +391,7 @@ def handle_image_analyzer(*args, **kwargs):
     :return:
     """
     global system_user_auth, queuename, servicename
-
+    evacuator = args[0]
     cycle_timer = kwargs['mythread']['cycle_timer']
 
     localconfig = anchore_engine.configuration.localconfig.get_config()
@@ -367,6 +399,7 @@ def handle_image_analyzer(*args, **kwargs):
 
     threads = []
     layer_cache_dirty = True
+
     while(True):
         logger.debug("analyzer thread cycle start")
         try:
@@ -383,10 +416,11 @@ def handle_image_analyzer(*args, **kwargs):
                 if qobj:
                     logger.debug("got work from queue task Id: {}".format(qobj.get('queueId', 'unknown')))
                     myqobj = copy.deepcopy(qobj)
+                    evacuator.push(myqobj)
                     logger.spew("incoming queue object: " + str(myqobj))
                     logger.debug("incoming queue task: " + str(list(myqobj.keys())))
                     logger.debug("starting thread")
-                    athread = threading.Thread(target=process_analyzer_job, args=(system_user_auth, myqobj,layer_cache_enable))
+                    athread = threading.Thread(target=process_analyzer_job, args=(system_user_auth, myqobj, layer_cache_enable, evacuator))
                     athread.start()
                     threads.append(athread)
                     logger.debug("thread started")
@@ -460,8 +494,9 @@ class AnalyzerService(ApiService):
     __service_name__ = 'analyzer'
     __spec_dir__ = pkg_resources.resource_filename(__name__, 'swagger')
     __service_api_version__ = 'v1'
+    evacuator = GracefulEvacuator()
     __monitors__ = {
         'service_heartbeat': {'handler': anchore_engine.subsys.servicestatus.handle_service_heartbeat, 'taskType': 'handle_service_heartbeat', 'args': [__service_name__], 'cycle_timer': 60, 'min_cycle_timer': 60, 'max_cycle_timer': 60, 'last_queued': 0, 'last_return': False, 'initialized': False},
-        'image_analyzer': {'handler': handle_image_analyzer, 'taskType': 'handle_image_analyzer', 'args': [], 'cycle_timer': 5, 'min_cycle_timer': 1, 'max_cycle_timer': 120, 'last_queued': 0, 'last_return': False, 'initialized': False},
+        'image_analyzer': {'handler': handle_image_analyzer, 'taskType': 'handle_image_analyzer', 'args': [evacuator], 'cycle_timer': 5, 'min_cycle_timer': 1, 'max_cycle_timer': 120, 'last_queued': 0, 'last_return': False, 'initialized': False},
         'handle_metrics': {'handler': handle_metrics, 'taskType': 'handle_metrics', 'args': [__service_name__], 'cycle_timer': 15, 'min_cycle_timer': 15, 'max_cycle_timer': 15, 'last_queued': 0, 'last_return': False, 'initialized': False},
     }

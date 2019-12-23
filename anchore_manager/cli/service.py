@@ -10,6 +10,7 @@ import traceback
 import threading
 import subprocess
 import watchdog
+import signal
 import anchore_engine.configuration.localconfig
 
 from watchdog.observers import Observer
@@ -100,7 +101,7 @@ class ServiceThread():
         self.thread.start()
 
 
-def terminate_service(service, flush_pidfile=False):
+def shutdown_service(service, flush_pidfile=False, sig=9):
     pidfile = "/var/run/anchore/" + service + ".pid"
     try:
         logger.info("Looking for pre-existing service ({}) pid from pidfile ({})".format(service, pidfile))
@@ -131,8 +132,7 @@ def terminate_service(service, flush_pidfile=False):
                     pass
                 else:
                     logger.info("Terminating existing service ({}) with pid ({}) using signal 9".format(service, thepid))
-                    os.kill(thepid, 9)
-
+                    os.kill(thepid, sig)
 
             if flush_pidfile:
                 logger.info("Removing stale pidfile ({}) for service ({})".format(pidfile, service))
@@ -147,7 +147,7 @@ def startup_service(service, configdir):
     # os.environ['ANCHORE_LOGFILE'] = logfile
 
     logger.info("cleaning up service: {}".format(str(service)))
-    terminate_service(service, flush_pidfile=True)
+    shutdown_service(service, flush_pidfile=True)
 
     twistd_cmd = 'twistd'
     for f in ['/bin/twistd', '/usr/local/bin/twistd']:
@@ -210,6 +210,15 @@ def do_list(anchore_module):
         click.echo(name)
     anchore_manager.cli.utils.doexit(0)
     return
+
+def make_signal_handler(services):
+    def signal_handler(sig, frame):
+        logger.error(f"OLEKSII signal catch on {__name__} {sig}")
+        for service in services:
+            shutdown_service(service, flush_pidfile=True, sig=sig)
+        time.sleep(5)
+        os.exit(0)
+    return signal_handler
 
 @service.command(name='start', short_help="Start anchore-engine")
 @click.argument('services', nargs=-1)
@@ -390,8 +399,7 @@ def start(services, auto_upgrade, anchore_module, skip_config_validate, skip_db_
         for service in services:
             pidfile = "/var/run/anchore/" + service + ".pid"
             try:
-                terminate_service(service, flush_pidfile=True)
-
+                shutdown_service(service, flush_pidfile=True)
                 service_thread = ServiceThread(startup_service, (service, configdir))
                 keepalive_threads.append(service_thread)
                 max_tries = 30
@@ -426,7 +434,7 @@ def start(services, auto_upgrade, anchore_module, skip_config_validate, skip_db_
         if startFailed:
             logger.fatal("one or more services failed to start. cleanly terminating the others")
             for service in services:
-                terminate_service(service, flush_pidfile=True)
+                shutdown_service(service, flush_pidfile=True)
             sys.exit(1)
         else:
             # start up the log watchers
@@ -434,6 +442,8 @@ def start(services, auto_upgrade, anchore_module, skip_config_validate, skip_db_
                 observer = Observer()
                 observer.schedule(AnchoreLogWatcher(), path="/var/log/anchore/")
                 observer.start()
+                signal.signal(signal.SIGINT, make_signal_handler(services))
+                signal.signal(signal.SIGTERM, make_signal_handler(services))
 
                 try:
                     while True:
