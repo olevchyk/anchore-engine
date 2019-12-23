@@ -28,6 +28,7 @@ from anchore_engine.clients.services.catalog import CatalogClient
 from anchore_engine.configuration.localconfig import OauthNotConfiguredError, InvalidOauthConfigurationError
 from anchore_engine.apis.exceptions import AnchoreApiError
 from anchore_engine.common.helpers import make_response_error
+from anchore_engine.subsys import evacuate
 
 
 class LifeCycleStages(enum.IntEnum):
@@ -129,7 +130,6 @@ class BaseService(object, metaclass=ServiceMeta):
 
     __is_unique_service__ = False
     __service_name__ = None
-    evacuator = None
     __db_enabled__ = True
     __monitors__ = {}
     __monitor_fn__ = monitors.monitor
@@ -223,9 +223,9 @@ class BaseService(object, metaclass=ServiceMeta):
         self._process_stage_handlers(LifeCycleStages.post_config)
 
     def shutdown(self):
-        if self.evacuator is not None:
-            logger.error(f"OLEKSII Shutdown on {__name__} triggered {self.evacuator}")
-            self.evacuator.evacuate()
+        evacuator = evacuate.get_manager()
+        if evacuator:
+            logger.error(f"OLEKSII Shutdown on {__name__} triggered {evacuator}")
         else:
             logger.error(f"OLEKSII self.evacuator is None on {__name__}")
 

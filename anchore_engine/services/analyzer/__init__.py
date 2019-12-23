@@ -21,12 +21,14 @@ import anchore_engine.common
 import anchore_engine.subsys.taskstate
 import anchore_engine.subsys.notifications
 from anchore_engine.subsys import logger
+from anchore_engine.subsys import evacuate
 
 from anchore_engine.utils import AnchoreException
 import anchore_engine.subsys.events as events
 from anchore_engine.subsys.identities import manager_factory
 from anchore_engine.service import ApiService
 from anchore_engine.db import session_scope
+from anchore_engine.service import LifeCycleStages
 
 ############################################
 
@@ -351,36 +353,6 @@ def handle_layer_cache(**kwargs):
 
     return(True)
 
-class GracefulEvacuator:
-
-    def __init__(self):
-        self.q_client = internal_client_for(SimpleQueueClient, userId=None)
-        self.__shutdown_queue = []
-
-    def evacuate(self):
-        logger.error(
-            f"OLEKSII_QUEUE_PREEVACUATE {len(self.__shutdown_queue)} {self}"
-        )
-        for qobj in self.__shutdown_queue:
-            if not self.q_client.is_inqueue('images_to_analyze', qobj):
-                logger.error(
-                    f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
-                )
-                self.q_client.enqueue('images_to_analyze', qobj)
-
-    def push(self, qobj):
-        if qobj not in self.__shutdown_queue:
-            self.__shutdown_queue.append(qobj)
-            logger.error(
-                f"OLEKSII_QUEUE_ADD {qobj.get('data', {}).get('imageDigest')} has added qsize: {len(self.__shutdown_queue)} - {self}"
-            )
-    
-    def pop(self, qobj):
-        self.__shutdown_queue.remove(qobj)
-        logger.error(
-            f"OLEKSII_QUEUE_DELETE {qobj.get('data', {}).get('imageDigest')} has been removed qsize: {len(self.__shutdown_queue)} - {self}"
-        )
-
 
 def handle_image_analyzer(*args, **kwargs):
     """
@@ -391,7 +363,7 @@ def handle_image_analyzer(*args, **kwargs):
     :return:
     """
     global system_user_auth, queuename, servicename
-    evacuator = args[0]
+    evacuator = evacuate.get_manager()
     cycle_timer = kwargs['mythread']['cycle_timer']
 
     localconfig = anchore_engine.configuration.localconfig.get_config()
@@ -494,9 +466,19 @@ class AnalyzerService(ApiService):
     __service_name__ = 'analyzer'
     __spec_dir__ = pkg_resources.resource_filename(__name__, 'swagger')
     __service_api_version__ = 'v1'
-    evacuator = GracefulEvacuator()
     __monitors__ = {
         'service_heartbeat': {'handler': anchore_engine.subsys.servicestatus.handle_service_heartbeat, 'taskType': 'handle_service_heartbeat', 'args': [__service_name__], 'cycle_timer': 60, 'min_cycle_timer': 60, 'max_cycle_timer': 60, 'last_queued': 0, 'last_return': False, 'initialized': False},
-        'image_analyzer': {'handler': handle_image_analyzer, 'taskType': 'handle_image_analyzer', 'args': [evacuator], 'cycle_timer': 5, 'min_cycle_timer': 1, 'max_cycle_timer': 120, 'last_queued': 0, 'last_return': False, 'initialized': False},
+        'image_analyzer': {'handler': handle_image_analyzer, 'taskType': 'handle_image_analyzer', 'args': [], 'cycle_timer': 5, 'min_cycle_timer': 1, 'max_cycle_timer': 120, 'last_queued': 0, 'last_return': False, 'initialized': False},
         'handle_metrics': {'handler': handle_metrics, 'taskType': 'handle_metrics', 'args': [__service_name__], 'cycle_timer': 15, 'min_cycle_timer': 15, 'max_cycle_timer': 15, 'last_queued': 0, 'last_return': False, 'initialized': False},
     }
+
+    def _register_instance_handlers(self):
+        super()._register_instance_handlers()
+        self.register_handler(LifeCycleStages.post_register, self._init_evacuator, {})
+
+    def _init_evacuator(self):
+        try:
+            evacuate.initialize()
+        except Exception as err:
+            logger.exception("Error initializing analysis evacuator")
+            raise err
