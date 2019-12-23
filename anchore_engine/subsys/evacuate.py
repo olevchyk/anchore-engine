@@ -5,7 +5,7 @@ point.
 This is primarily used for the analysis archive feature of the system, but is not specific to that usage.
 
 """
-import copy
+import time
 from anchore_engine.clients.services.simplequeue import SimpleQueueClient
 from anchore_engine.clients.services.catalog import CatalogClient
 from anchore_engine.clients.services import internal_client_for
@@ -56,6 +56,7 @@ class GracefulEvacuator(object):
                     image_record['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
 
                     if imageDigest:
+                        time.sleep(2)
                         try:
                             image = catalog_client.get_image(imageDigest)
                             if not image:
