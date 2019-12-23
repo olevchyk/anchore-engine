@@ -56,6 +56,14 @@ class GracefulEvacuator(object):
                     image_record['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
 
                     if imageDigest:
+                        try:
+                            image = catalog_client.get_image(imageDigest)
+                            if not image:
+                                raise Exception("empty image record from catalog")
+                        except Exception as err:
+                            logger.warn("dequeued image cannot be fetched from catalog - evacuate (" + str(
+                                imageDigest) + ") - exception: " + str(err))
+                            return (True)
                         rc = catalog_client.update_image(imageDigest, image_record)
                         q_client.enqueue('images_to_analyze', image_record)
                         if rc is not None:
