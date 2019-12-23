@@ -268,7 +268,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
                 event = events.UserAnalyzeImageFailed(user_id=userId, full_tag=fulltag, error=str(err))
                 analysis_events.append(event)
         finally:
-            evacuator.pop(qobj)
+            evacuator.delete(qobj)
             if analysis_events:
                 for event in analysis_events:
                     try:
@@ -388,7 +388,7 @@ def handle_image_analyzer(*args, **kwargs):
                 if qobj:
                     logger.debug("got work from queue task Id: {}".format(qobj.get('queueId', 'unknown')))
                     myqobj = copy.deepcopy(qobj)
-                    evacuator.push(myqobj)
+                    evacuator.add(myqobj)
                     logger.spew("incoming queue object: " + str(myqobj))
                     logger.debug("incoming queue task: " + str(list(myqobj.keys())))
                     logger.debug("starting thread")

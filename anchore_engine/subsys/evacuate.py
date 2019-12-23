@@ -5,6 +5,7 @@ point.
 This is primarily used for the analysis archive feature of the system, but is not specific to that usage.
 
 """
+import copy
 from anchore_engine.clients.services.simplequeue import SimpleQueueClient
 from anchore_engine.clients.services import internal_client_for
 from anchore_engine.subsys import logger
@@ -46,16 +47,16 @@ class GracefulEvacuator(object):
                 logger.error(
                     f"OLEKSII_QUEUE_EVACUATE {qobj.get('data', {}).get('imageDigest')} has pushed back local qsize: {len(self.__shutdown_queue)}"
                 )
-                self.q_client.enqueue('images_to_analyze', qobj)
+                self.q_client.enqueue('images_to_analyze', qobj.get('data'))
 
-    def push(self, qobj):
+    def add(self, qobj):
         if qobj not in self.__shutdown_queue:
             self.__shutdown_queue.append(qobj)
             logger.error(
                 f"OLEKSII_QUEUE_ADD {qobj.get('data', {}).get('imageDigest')} has added qsize: {len(self.__shutdown_queue)} - {self}"
             )
 
-    def pop(self, qobj):
+    def delete(self, qobj):
         self.__shutdown_queue.remove(qobj)
         logger.error(
             f"OLEKSII_QUEUE_DELETE {qobj.get('data', {}).get('imageDigest')} has been removed qsize: {len(self.__shutdown_queue)} - {self}"
