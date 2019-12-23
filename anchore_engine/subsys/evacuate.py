@@ -45,7 +45,6 @@ class GracefulEvacuator(object):
         )
         if len(self.__shutdown_queue) > 0:
             q_client = internal_client_for(SimpleQueueClient, userId=None)
-            catalog_client = internal_client_for(CatalogClient, userId=self.__shutdown_queue[0].get('data', {}).get('userId'))
             for qobj in self.__shutdown_queue:
                 image_record = qobj.get('data')
                 if not q_client.is_inqueue('images_to_analyze', qobj):
@@ -55,6 +54,7 @@ class GracefulEvacuator(object):
                     imageDigest = image_record.get("imageDigest")
                     image_record['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
                     if imageDigest:
+                        catalog_client = internal_client_for(CatalogClient, userId=image_record.get('userId'))
                         rc = catalog_client.update_image(imageDigest, image_record)
                         q_client.enqueue('images_to_analyze', image_record)
                         if rc is not None:
