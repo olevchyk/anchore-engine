@@ -217,7 +217,7 @@ def make_signal_handler(services):
         for service in services:
             shutdown_service(service, flush_pidfile=True, sig=sig)
         time.sleep(5)
-        os.exit(0)
+        sys.exit(0)
     return signal_handler
 
 @service.command(name='start', short_help="Start anchore-engine")

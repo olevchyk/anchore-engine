@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/dumb-init /bin/bash
+
+if [ "$1" == 'anchore-manager' ]; then
+  shift 1;
+  set -- /opt/rh/rh-python36/root/usr/bin/anchore-manager $@
+fi
 
 if [[ "${SET_HOSTID_TO_HOSTNAME}" == "true" ]]; then
     echo "Setting ANCHORE_HOST_ID to ${HOSTNAME}"
