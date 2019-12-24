@@ -258,7 +258,7 @@ class NvdFeedDataMapper(FeedDataMapper):
                         elif 'python' in final_cpe[6]:
                             themeta = '~~~python~~'
                         newcpe.meta = themeta
-                        newcpe.link = "http://anchore-cache:8080/vuln/detail/{}".format(db_rec.name)
+                        newcpe.link = "https://nvd.nist.gov/vuln/detail/{}".format(db_rec.name)
                         db_rec.vulnerable_cpes.append(newcpe)
 
             except Exception as err:
@@ -281,7 +281,7 @@ class NvdV2FeedDataMapper(FeedDataMapper):
         db_rec.cvss_v2 = record_json.get('cvss_v2', None)
         db_rec.cvss_v3 = record_json.get('cvss_v3', None)
         db_rec.severity = record_json.get('severity') if record_json.get('severity', None) else 'Unknown'
-        db_rec.link = "http://anchore-cache:8080/vuln/detail/{}".format(db_rec.name)
+        db_rec.link = "https://nvd.nist.gov/vuln/detail/{}".format(db_rec.name)
         db_rec.references = record_json.get('external_references', [])
 
         db_rec.vulnerable_cpes = []

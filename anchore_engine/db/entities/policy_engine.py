@@ -550,7 +550,7 @@ class NvdMetadata(Base):
 
     @property
     def link(self):
-        return 'http://anchore-cache:8080/vuln/detail/{}'.format(self.name)
+        return 'https://nvd.nist.gov/vuln/detail/{}'.format(self.name)
 
     def key_tuple(self):
         return self.name
