@@ -912,7 +912,9 @@ class AnchoreServiceFeed(DataFeed):
             group_obj.last_sync = datetime.datetime.utcnow()
             db.add(group_obj)
             db.commit()
-            return len(new_data_deduped)
+            len_new_data_deduped = len(new_data_deduped)
+            del new_data_deduped
+            return len_new_data_deduped
         except Exception as e:
             log.exception('Error syncing group: {}'.format(group_obj))
             db.rollback()
@@ -957,8 +959,9 @@ class AnchoreServiceFeed(DataFeed):
                     #db.add(merged)
                 db.flush()
                 log.info('Db merge took {} sec'.format(time.time() - db_time))
-                total_updated_count += len(new_data_deduped)
-
+                len_new_data_deduped = len(new_data_deduped)
+                del new_data_deduped
+                total_updated_count += len_new_data_deduped
             group_obj.last_sync = datetime.datetime.utcnow()
             db.add(group_obj)
             db.commit()
