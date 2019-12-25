@@ -9,6 +9,7 @@ an update to the feed handling code is ok to be required as well.
 """
 import copy
 import json
+import gc
 import datetime
 import re
 import threading
@@ -886,6 +887,7 @@ class AnchoreServiceFeed(DataFeed):
 
         data = list(new_data_deduped.values())
         del new_data_deduped
+        gc.collect()
         return data, next_token
 
     def _bulk_sync_group(self, group_obj):
@@ -914,6 +916,7 @@ class AnchoreServiceFeed(DataFeed):
             db.commit()
             len_new_data_deduped = len(new_data_deduped)
             del new_data_deduped
+            gc.collect()
             return len_new_data_deduped
         except Exception as e:
             log.exception('Error syncing group: {}'.format(group_obj))
@@ -961,6 +964,7 @@ class AnchoreServiceFeed(DataFeed):
                 log.info('Db merge took {} sec'.format(time.time() - db_time))
                 len_new_data_deduped = len(new_data_deduped)
                 del new_data_deduped
+                gc.collect()
                 total_updated_count += len_new_data_deduped
             group_obj.last_sync = datetime.datetime.utcnow()
             db.add(group_obj)
