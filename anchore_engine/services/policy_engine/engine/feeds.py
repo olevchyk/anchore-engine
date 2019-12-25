@@ -885,7 +885,9 @@ class AnchoreServiceFeed(DataFeed):
             log.debug('Page = {}, new_data = {}, next_token = {}'.format(pages, bool(new_data), bool(next_token), max_pages))
 
         data = list(new_data_deduped.values())
-        new_data_deduped = None
+        for mapped in new_data_deduped:
+            del new_data_deduped[mapped]
+        del new_data_deduped
         return data, next_token
 
     def _bulk_sync_group(self, group_obj):
