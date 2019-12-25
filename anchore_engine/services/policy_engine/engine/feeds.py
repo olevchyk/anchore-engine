@@ -1216,7 +1216,7 @@ class VulnerabilityFeed(AnchoreServiceFeed):
                     updated_images = updated_images.union(set(updated_image_ids))  # Record after commit to ensure in-sync.
                     db.flush()
                 log.debug('Db merge took {} sec'.format(time.time() - db_time))
-
+                del new_data_deduped
             group_obj.last_sync = datetime.datetime.utcnow()
             db.add(group_obj)
             db.commit()
