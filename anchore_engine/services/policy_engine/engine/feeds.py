@@ -16,6 +16,8 @@ import threading
 import time
 import traceback
 
+from sqlalchemy.orm.strategy_options import loader_option
+
 from anchore_engine.db import get_thread_scoped_session as get_session
 from anchore_engine.db import GenericFeedDataRecord, FeedMetadata, FeedGroupMetadata
 from anchore_engine.db import FixedArtifact, Vulnerability, GemMetadata, NpmMetadata, NvdMetadata, CpeVulnerability, NvdV2Metadata, CpeV2Vulnerability, VulnDBMetadata, VulnDBCpe
@@ -887,7 +889,6 @@ class AnchoreServiceFeed(DataFeed):
 
         data = list(new_data_deduped.values())
         del new_data_deduped
-        gc.collect()
         return data, next_token
 
     def _bulk_sync_group(self, group_obj):
@@ -958,7 +959,7 @@ class AnchoreServiceFeed(DataFeed):
                 db_time = time.time()
 
                 for rec in new_data_deduped:
-                    merged = db.merge(rec)
+                    merged = db.merge(rec, load=False)
                     #db.add(merged)
                 db.flush()
                 log.info('Db merge took {} sec'.format(time.time() - db_time))
