@@ -959,7 +959,7 @@ class AnchoreServiceFeed(DataFeed):
                 db_time = time.time()
 
                 for rec in new_data_deduped:
-                    merged = db.merge(rec, load=False)
+                    merged = db.merge(rec)
                     #db.add(merged)
                 db.flush()
                 log.info('Db merge took {} sec'.format(time.time() - db_time))
