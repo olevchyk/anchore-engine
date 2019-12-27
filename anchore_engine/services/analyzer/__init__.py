@@ -95,8 +95,6 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
         logger.debug('dequeued object: {}'.format(qobj))
 
         record = qobj['data']
-        if 'data' in record:
-            record = record['data']
         userId = record['userId']
         imageDigest = record['imageDigest']
         manifest = record['manifest']

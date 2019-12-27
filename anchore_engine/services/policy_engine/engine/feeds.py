@@ -7,16 +7,12 @@ data. Additionally, any new feed will require new code to be able to consume it 
 an update to the feed handling code is ok to be required as well.
 
 """
-import copy
-import json
 import gc
 import datetime
 import re
 import threading
 import time
 import traceback
-
-from sqlalchemy.orm.strategy_options import loader_option
 
 from anchore_engine.db import get_thread_scoped_session as get_session
 from anchore_engine.db import GenericFeedDataRecord, FeedMetadata, FeedGroupMetadata

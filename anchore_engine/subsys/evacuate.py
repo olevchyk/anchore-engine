@@ -18,7 +18,7 @@ _manager_singleton = None
 
 def initialize():
     """
-    Initializes the object storage manager for the analysis archive.
+    Initializes the object evacuator manager to hold queue of images.
 
     NOTE: this is not thread-safe, should be called once on service startup, not in request threads/path
 
