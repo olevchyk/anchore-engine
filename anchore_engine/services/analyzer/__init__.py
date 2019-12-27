@@ -83,9 +83,10 @@ def perform_analyze_nodocker(userId, manifest, image_record, registry_creds, lay
     return (ret_analyze)
 
 
-def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
+def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
     global servicename #current_avg, current_avg_count
 
+    evacuator = evacuate.get_manager()
     timer = int(time.time())
     analysis_events = []
     #event = None
@@ -115,6 +116,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable, evacuator):
             return(True)
         
         try:
+            evacuator.add(qobj)
             logger.spew("TIMING MARK0: " + str(int(time.time()) - timer))
 
             last_analysis_status = image_record['analysis_status']
@@ -363,7 +365,6 @@ def handle_image_analyzer(*args, **kwargs):
     :return:
     """
     global system_user_auth, queuename, servicename
-    evacuator = evacuate.get_manager()
     cycle_timer = kwargs['mythread']['cycle_timer']
 
     localconfig = anchore_engine.configuration.localconfig.get_config()
@@ -388,11 +389,10 @@ def handle_image_analyzer(*args, **kwargs):
                 if qobj:
                     logger.debug("got work from queue task Id: {}".format(qobj.get('queueId', 'unknown')))
                     myqobj = copy.deepcopy(qobj)
-                    evacuator.add(myqobj)
                     logger.spew("incoming queue object: " + str(myqobj))
                     logger.debug("incoming queue task: " + str(list(myqobj.keys())))
                     logger.debug("starting thread")
-                    athread = threading.Thread(target=process_analyzer_job, args=(system_user_auth, myqobj, layer_cache_enable, evacuator))
+                    athread = threading.Thread(target=process_analyzer_job, args=(system_user_auth, myqobj, layer_cache_enable))
                     athread.start()
                     threads.append(athread)
                     logger.debug("thread started")
