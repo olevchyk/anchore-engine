@@ -56,13 +56,15 @@ class GracefulEvacuator(object):
                         if not image_record:
                             raise Exception("empty image record from catalog")
                     except Exception as err:
-                        logger.warn("dequeued image cannot be fetched from catalog - skipping analysis (" + str(
+                        logger.warn("dequeued image cannot be fetched from catalog - skipping evacuation (" + str(
                             imageDigest) + ") - exception: " + str(err))
                         return (True)
-                    image['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
-                    if imageDigest:
-                        catalog_client.update_image(imageDigest, image)
-                        q_client.enqueue('images_to_analyze', image_record)
+
+                    if image['analysis_status'] != anchore_engine.subsys.taskstate.complete_state('analyze'):
+                        image['analysis_status'] = anchore_engine.subsys.taskstate.base_state('analyze')
+                        if imageDigest:
+                            catalog_client.update_image(imageDigest, image)
+                            q_client.enqueue('images_to_analyze', image_record)
 
     def add(self, qobj):
         if qobj not in self.__shutdown_queue:
