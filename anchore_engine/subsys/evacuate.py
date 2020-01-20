@@ -79,6 +79,8 @@ class GracefulEvacuator(object):
             f"OLEKSII_QUEUE_DELETE {qobj.get('data', {}).get('imageDigest')} has been removed qsize: {len(self.__shutdown_queue)} - {self}"
         )
 
+    def size(self):
+        return len(self.__shutdown_queue)
 
 def get_manager() -> GracefulEvacuator:
     """

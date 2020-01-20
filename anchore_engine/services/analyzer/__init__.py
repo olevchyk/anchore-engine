@@ -117,6 +117,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
         
         try:
             evacuator.add(qobj)
+            anchore_engine.subsys.metrics.gauge_set("anchore_evacuator_queue_size", evacuator.size())
             logger.spew("TIMING MARK0: " + str(int(time.time()) - timer))
 
             last_analysis_status = image_record['analysis_status']
@@ -271,6 +272,7 @@ def process_analyzer_job(system_user_auth, qobj, layer_cache_enable):
                 analysis_events.append(event)
         finally:
             evacuator.delete(qobj)
+            anchore_engine.subsys.metrics.gauge_set("anchore_evacuator_queue_size", evacuator.size())
             if analysis_events:
                 for event in analysis_events:
                     try:
